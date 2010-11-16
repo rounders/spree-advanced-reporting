@@ -51,8 +51,8 @@ module AdvancedReporting::ReportsController
 
   def report_setup(report_name) 
     dropdowns
-    @dates = get_date_formatting(params)
-    @header = @dates[:header_display]
+    @dates = get_date_formatting(params) if params[:advanced_reporting]
+    @header = @dates ? @dates[:header_display] : '-'
     @results = {}
     @value_total = 0
     @report_name = 'Units'
@@ -71,19 +71,21 @@ module AdvancedReporting::ReportsController
   def revenue
     report_setup('Revenue')
 
-    @orders.each do |order|
-      date = order.completed_at.strftime(@dates[:date_hash])
-      @results[date] ||= {
-        :value => 0, 
-        :display => params[:advanced_reporting][:split] && params[:advanced_reporting][:split] == 'weekly' ? get_week_display(order.completed_at) : order.completed_at.strftime(@dates[:date_display])
-      }
-      if params[:advanced_reporting][:product] && params[:advanced_reporting][:product] != ''
-        item_rev = order.line_items.select { |li| li.product.id.to_s == params[:advanced_reporting][:product] }.inject(0) { |a, b| a += b.quantity * b.price }
-        @results[date][:value] += item_rev
-        @value_total += item_rev
-      else 
-        @results[date][:value] += order.item_total
-        @value_total += order.item_total
+    if @dates
+      @orders.each do |order|
+        date = order.completed_at.strftime(@dates[:date_hash])
+        @results[date] ||= {
+          :value => 0, 
+          :display => params[:advanced_reporting][:split] && params[:advanced_reporting][:split] == 'weekly' ? get_week_display(order.completed_at) : order.completed_at.strftime(@dates[:date_display])
+        }
+        if params[:advanced_reporting][:product] && params[:advanced_reporting][:product] != ''
+          item_rev = order.line_items.select { |li| li.product.id.to_s == params[:advanced_reporting][:product] }.inject(0) { |a, b| a += b.quantity * b.price }
+          @results[date][:value] += item_rev
+          @value_total += item_rev
+        else 
+          @results[date][:value] += order.item_total
+          @value_total += order.item_total
+        end
       end
     end
  
@@ -96,20 +98,22 @@ module AdvancedReporting::ReportsController
   def units
     report_setup('Units')
 
-    @orders.each do |order|
-      date = order.completed_at.strftime(@dates[:date_hash])
-      @results[date] ||= {
-        :value => 0, 
-        :display => params[:advanced_reporting][:split] && params[:advanced_reporting][:split] == 'weekly' ? get_week_display(order.completed_at) : order.completed_at.strftime(@dates[:date_display])
-      }
-      if params[:advanced_reporting][:product] && params[:advanced_reporting][:product] != ''
-        units = order.line_items.select { |li| li.product.id.to_s == params[:advanced_reporting][:product] }.inject(0) { |a, b| a += b.quantity }
-        @results[date][:value] += units
-        @value_total += units
-      else 
-        units = order.line_items.sum(:quantity)
-        @results[date][:value] += units
-        @value_total += units
+    if @dates
+      @orders.each do |order|
+        date = order.completed_at.strftime(@dates[:date_hash])
+        @results[date] ||= {
+          :value => 0, 
+          :display => params[:advanced_reporting][:split] && params[:advanced_reporting][:split] == 'weekly' ? get_week_display(order.completed_at) : order.completed_at.strftime(@dates[:date_display])
+        }
+        if params[:advanced_reporting][:product] && params[:advanced_reporting][:product] != ''
+          units = order.line_items.select { |li| li.product.id.to_s == params[:advanced_reporting][:product] }.inject(0) { |a, b| a += b.quantity }
+          @results[date][:value] += units
+          @value_total += units
+        else 
+          units = order.line_items.sum(:quantity)
+          @results[date][:value] += units
+          @value_total += units
+        end
       end
     end 
 
