@@ -1,0 +1,25 @@
+<h1><%= @report_name %></h1>
+
+<table class="admin-report">
+  <tbody>
+    <tr>
+      <th scope="row"><%= @header %></th>
+      <td></td>
+    </tr>
+    <% @results.each do |k, v| -%>
+    <tr>
+      <td><%= v[:display] %></td>
+      <td><%= v[:value] %></td>
+    </tr>
+    <% end -%>
+    <tr>
+      <th scope="row"><%= t("total") %>:</th>
+      <td align="right"><%= @value_total%></td>
+    </tr>
+  </tbody>
+</table>
+
+<% content_for :sidebar do %>
+  <%= render :partial => 'admin/reports/advanced_report_criteria', :locals => {} %>
+<% end %>
+
