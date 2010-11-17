@@ -1,0 +1,7 @@
+<h1><%= @report_name %></h1>
+
+<%= @data.to_html %>
+
+<% content_for :sidebar do %>
+  <%= render :partial => 'admin/reports/advanced_report_criteria', :locals => {} %>
+<% end %>

@@ -1,5 +1,5 @@
 <% form_for @search do |s| %>
-  <h1>Advanced Reporting</h1>
+    <h3>Reporting Criteria</h3>
     <label><%= t("date_range") %></label><br />
     <div class="yui-g date-range-filter">
       <div class="yui-u sub-field first">
@@ -11,14 +11,19 @@
         <label><%= t("stop") %></label>
       </div>
     </div>
-    <%= radio_button_tag("advanced_reporting[split]", "daily", true) %>Daily<br />
-    <%= radio_button_tag("advanced_reporting[split]", "weekly") %>Weekly<br />
-    <%= radio_button_tag("advanced_reporting[split]", "monthly") %>Monthly<br />
 
     <% if @stores -%>
     Stores: dropdown for stores
     <% end -%>
+
+    <% if params[:action] != 'top_products' %>
     Products: <%= collection_select(:advanced_reporting, :product, @products, :id, :name, { :include_blank => 'All' } ) %> 
+    <% end -%>
 
     <p><%= button t("search") %></p>
 <% end %>
+
+<% content_for :head do -%>
+<%= javascript_include_tag 'jquery.tablesorter.min.js', 'advanced_reporting.js' %>
+<%= stylesheet_link_tag 'advanced_reporting' %>
+<% end -%>

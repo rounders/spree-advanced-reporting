@@ -1,25 +1,20 @@
 <h1><%= @report_name %></h1>
 
-<table class="admin-report">
-  <tbody>
-    <tr>
-      <th scope="row"><%= @header %></th>
-      <td></td>
-    </tr>
-    <% @results.each do |k, v| -%>
-    <tr>
-      <td><%= v[:display] %></td>
-      <td><%= v[:value] %></td>
-    </tr>
-    <% end -%>
-    <tr>
-      <th scope="row"><%= t("total") %>:</th>
-      <td align="right"><%= @value_total%></td>
-    </tr>
-  </tbody>
+Total: <%= @value_total%>
+<% if false -%>Download Data: <a href="/downloadable">Downloadable</a><% end -%>
+<table width="100%" cellpadding="0" cellspacing="0" class="show_data">
+  <tr>
+    <td width="33%" class="selected" id="daily">Daily</td>
+    <td width="33%" id="weekly">Weekly</td>
+    <td width="33%" id="monthly">Monthly</td>
+  </tr>  
 </table>
+<% [:daily, :weekly, :monthly].each do |type| -%>
+<div id="<%= type.to_s %>_data" <%= 'style="display:none;"' if type.to_s != 'daily' %> class="advanced_reporting_data">
+<%= @data[type].to_html %>
+</div>
+<% end -%>
 
 <% content_for :sidebar do %>
   <%= render :partial => 'admin/reports/advanced_report_criteria', :locals => {} %>
 <% end %>
-
