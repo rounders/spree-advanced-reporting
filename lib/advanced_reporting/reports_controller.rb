@@ -164,7 +164,7 @@ module AdvancedReporting::ReportsController
     @orders.each do |order|
       order.line_items.each do |li|
         results[li.product.id] ||= {
-          :name => li.product.name,
+          :name => li.product.name.to_s,
           :revenue => 0,
           :units => 0
         }
