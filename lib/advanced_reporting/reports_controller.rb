@@ -183,7 +183,7 @@ module AdvancedReporting::ReportsController
     end
 
     # format revenue column
-    render :template => "admin/reports/top_report"
+    render :template => "admin/reports/base_top_report"
   end
 
   def top_customers
@@ -219,7 +219,7 @@ module AdvancedReporting::ReportsController
     end
 
     # format revenue column
-    render :template => "admin/reports/top_report"
+    render :template => "admin/reports/base_top_report"
   end
 
   def geo_revenue
