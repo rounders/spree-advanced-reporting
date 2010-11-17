@@ -231,26 +231,30 @@ module AdvancedReporting::ReportsController
       :country => {}
     }
     @orders.each do |order|
-      results[:state][order.bill_address.state_id] ||= {
-        :name => order.bill_address.state.name,
-        :revenue => 0,
-        :units => 0
-      }
-      results[:country][order.bill_address.country_id] ||= {
-        :name => order.bill_address.country.name,
-        :revenue => 0,
-        :units => 0
-      }
       rev = order.item_total
       units = order.line_items.sum(:quantity)
       if params[:advanced_reporting] && params[:advanced_reporting][:product] && params[:advanced_reporting][:product] != ''
         rev = order.line_items.select { |li| li.product.id.to_s == params[:advanced_reporting][:product] }.inject(0) { |a, b| a += b.quantity * b.price }
         units = order.line_items.select { |li| li.product.id.to_s == params[:advanced_reporting][:product] }.inject(0) { |a, b| a += b.quantity }
       end
-      results[:state][order.bill_address.state_id][:revenue] += rev
-      results[:state][order.bill_address.state_id][:units] += units
-      results[:country][order.bill_address.country_id][:revenue] += rev
-      results[:country][order.bill_address.country_id][:units] += units
+      if order.bill_address.state
+        results[:state][order.bill_address.state_id] ||= {
+          :name => order.bill_address.state.name,
+          :revenue => 0,
+          :units => 0
+        }
+        results[:state][order.bill_address.state_id][:revenue] += rev
+        results[:state][order.bill_address.state_id][:units] += units
+      end
+      if order.bill_address.country
+        results[:country][order.bill_address.country_id] ||= {
+          :name => order.bill_address.country.name,
+          :revenue => 0,
+          :units => 0
+        }
+        results[:country][order.bill_address.country_id][:revenue] += rev
+        results[:country][order.bill_address.country_id][:units] += units
+      end
     end
 
     @data_states = Table(%w[name units revenue])
