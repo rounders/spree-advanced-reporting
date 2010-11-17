@@ -163,13 +163,15 @@ module AdvancedReporting::ReportsController
     results = {}
     @orders.each do |order|
       order.line_items.each do |li|
-        results[li.product.id] ||= {
-          :name => li.product.name.to_s,
-          :revenue => 0,
-          :units => 0
-        }
-        results[li.product.id][:revenue] += li.quantity*li.price 
-        results[li.product.id][:units] += li.quantity
+        if !li.product.nil?
+          results[li.product.id] ||= {
+            :name => li.product.name.to_s,
+            :revenue => 0,
+            :units => 0
+          }
+          results[li.product.id][:revenue] += li.quantity*li.price 
+          results[li.product.id][:units] += li.quantity
+        end
       end
     end
 
