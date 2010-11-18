@@ -284,11 +284,11 @@ module AdvancedReporting::ReportsController
       @data[type].replace_column("Revenue") { |r| "$%0.2f" % r.Revenue }
     end
 
-
-    @map_data = {}
+    @map_data = { :state => {} }
     max = results[:state].inject({}) { |h, (k, v)| h[k] = v[:revenue]; h }.values.max
-    min = 0
-    @map_data[:state] = results[:state].inject({}) { |h, (k, v)| h[v[:abbr]] = { :opacity => opacity(v[:revenue], max), :value => v[:revenue] }; h }
+    if max > 0
+      @map_data[:state] = results[:state].inject({}) { |h, (k, v)| h[v[:abbr]] = { :opacity => opacity(v[:revenue], max), :value => v[:revenue] }; h }
+    end
     ["DC", "UT", "LA", "VA", "ND", "WY", "NM", "CT", "WV", "WI", "NC",
       "NV", "HI", "OK", "FL", "CA", "OR", "KY", "MA", "AK", "WA", "NH",
       "AR", "PA", "RI", "MD", "OH", "TX", "MS", "CO", "SC", "SD", "IL",
