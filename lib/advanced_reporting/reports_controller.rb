@@ -261,6 +261,7 @@ module AdvancedReporting::ReportsController
       results[type].each do |k, v|
         @data[type] << { "location" => v[:name], "Units" => v[:units], "Revenue" => v[:revenue] } 
       end
+      @data[type].sort_rows_by!(["location"])
       @data[type].rename_column("location", type.to_s.capitalize)
       @data[type].replace_column("Revenue") { |r| "$%0.2f" % r.Revenue }
     end
