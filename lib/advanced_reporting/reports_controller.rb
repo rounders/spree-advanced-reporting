@@ -299,6 +299,6 @@ module AdvancedReporting::ReportsController
   end
 
   def opacity(value, max)
-    (value.to_f/(1.5*max)*100).to_i.to_s #.to_s
+    "%02.f" % (value.to_f/(1.5*max)*100).to_i
   end
 end
