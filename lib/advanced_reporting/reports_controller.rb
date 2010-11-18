@@ -46,6 +46,24 @@ module AdvancedReporting::ReportsController
     @search.checkout_complete = true
 
     @orders = @search.find(:all)
+    if params[:advanced_reporting] && params[:advanced_reporting][:product_id] && params[:advanced_reporting][:product_id] != ''
+      product = Product.find(params[:advanced_reporting][:product_id])
+      @product_text = "Product: #{product.name}<br />" if product
+    end
+    @date_text = "Date Range:"
+    if params[:search]
+      if params[:search][:created_at_after] != '' && params[:search][:created_at_before] != ''
+        @date_text += " From #{params[:search][:created_at_after]} to #{params[:search][:created_at_before]}"
+      elsif params[:search][:created_at_after] != ''
+        @date_text += " After #{params[:search][:created_at_after]}"
+      elsif params[:search][:created_at_before] != ''
+        @date_text += " Before #{params[:search][:created_at_after]}"
+      else
+        @date_text += " All"
+      end
+    else
+      @date_text += " All"
+    end
   end
 
   def report_increment_setup
