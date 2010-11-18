@@ -1,6 +1,6 @@
 table.show_data td.selected { background: #999; }
 table.show_data td:hover { cursor: pointer; }
 
-th.headerSortUp { background-image: url(/images/asc.gif); background-color: #3399FF; }
-th.headerSortDown { background-image: url(/images/desc.gif); background-color: #3399FF; }
-th.header { background-image: url(/images/bg.gif); cursor: pointer; font-weight: bold; background-repeat: no-repeat; background-position: center left; padding-left: 20px; border-right: 1px solid #dad9c7;  margin-left: -1px; } 
+th.headerSortUp { background-image: url(/images/advanced_reporting/asc.gif); background-color: #3399FF; }
+th.headerSortDown { background-image: url(/images/advanced_reporting/desc.gif); background-color: #3399FF; }
+th.header { background-image: url(/images/advanced_reporting/bg.gif); cursor: pointer; font-weight: bold; background-repeat: no-repeat; background-position: center left; padding-left: 20px; border-right: 1px solid #dad9c7;  margin-left: -1px; } 

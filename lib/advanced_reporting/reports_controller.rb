@@ -3,37 +3,19 @@ module AdvancedReporting::ReportsController
     target.class_eval do
       alias :spree_index :index
       def index; advanced_reporting_index; end
+      before_filter :basic_report_setup, :actions => [:revenue, :units, :top_products, :top_customers, :geo_revenue]
     end 
   end
-
-  def advanced_reporting_index
-    @reports = {
+  ADVANCED_REPORTS = {
       :revenue		=> { :name => "Revenue", :description => "Revenue" },
       :units		=> { :name => "Units", :description => "Units" },
       :top_products	=> { :name => "Top Products", :description => "Top Products" },
       :top_customers	=> { :name => "Top Customers", :description => "Top Customers" },
       :geo_revenue	=> { :name => "Geo Revenue", :description => "Geo Revenue" },
-    }.merge(Admin::ReportsController::AVAILABLE_REPORTS)
-  end
+  }
 
-  def get_date_formatting
-    {
-      :daily => {
-        :date_hash => "%F",
-        :date_display => "%m-%d-%Y",
-        :header_display => 'Day'
-      },
-      :weekly => {
-        :date_hash => "%U",
-        :date_display => "%F",
-        :header_display => 'Week'
-      },
-      :monthly => {
-        :date_hash => "%Y-%m",
-        :date_display => "%B %Y",
-        :header_display => 'Month'
-      }
-    }
+  def advanced_reporting_index
+    @reports = ADVANCED_REPORTS.merge(Admin::ReportsController::AVAILABLE_REPORTS)
   end
 
   def dropdowns
@@ -53,25 +35,43 @@ module AdvancedReporting::ReportsController
     "#{d.strftime("%m-%d-%Y")} - #{(d+6).strftime("%m-%d-%Y")}"
   end
 
-  def report_setup(report_name) 
-	@reports = Admin::ReportsController::AVAILABLE_REPORTS 
+  def basic_report_setup
+    @reports = ADVANCED_REPORTS
     dropdowns
-    @dates = get_date_formatting
-    @header = 'blah' #@dates ? @dates[:header_display] : '-'
     @value_total = 0
-    @report_name = report_name
+    @report_name = params[:action].gsub(/_/, ' ').split(' ').each { |w| w.capitalize! }.join(' ')
 
     @search = Order.searchlogic(params[:search])
     # store id can be an order search param here
     @search.checkout_complete = true
 
     @orders = @search.find(:all)
+  end
 
+  def report_increment_setup
     @data = {
       :daily => Table(%w[key display value]),
       :weekly => Table(%w[key display value]),
       :monthly => Table(%w[key display value]),
     } 
+
+    @dates = {
+      :daily => {
+        :date_hash => "%F",
+        :date_display => "%m-%d-%Y",
+        :header_display => 'Day'
+      },
+      :weekly => {
+        :date_hash => "%U",
+        :date_display => "%F",
+        :header_display => 'Week'
+      },
+      :monthly => {
+        :date_hash => "%Y-%m",
+        :date_display => "%B %Y",
+        :header_display => 'Month'
+      }
+    }
 
     {
       :daily => {},
@@ -81,7 +81,6 @@ module AdvancedReporting::ReportsController
   end
 
   def get_revenue(results, dates, orders)
-logger.warn "steph #{orders.inspect}"
     orders.each do |order|
       date = {}
       [:daily, :weekly, :monthly].each do |type|
@@ -103,12 +102,17 @@ logger.warn "steph #{orders.inspect}"
       results[type].each do |k,v|
         @data[type] << { "key" => k, "display" => v[:display], "value" => v[:value] } 
       end
+      @data[type].sort_rows_by!(["key"])
+      @data[type].remove_column("key")
+      @data[type].replace_column("value") { |r| "$%0.2f" % r.value }
+      @data[type].rename_column("value", "Revenue")
+      @data[type].rename_column("display", @dates[type][:header_display])
     end
+
   end
 
   def revenue
-    results = report_setup('Revenue')
-logger.warn "steph here"
+    results = report_increment_setup
     get_revenue(results, @dates, @orders)
 
     # add rendering for different format requests
@@ -146,18 +150,20 @@ logger.warn "steph here"
       results[type].each do |k,v|
         @data[type] << { "key" => k, "display" => v[:display], "value" => v[:value] } 
       end
+      @data[type].sort_rows_by!(["key"])
+      @data[type].remove_column("key")
+      @data[type].rename_column("value", "Units")
+      @data[type].rename_column("display", @dates[type][:header_display])
     end
   end
   def units
-    results = report_setup('Units')
+    results = report_increment_setup
     get_units(results, @dates, @orders)
     # add rendering for different format requests
     render :template => "admin/reports/base_report"
   end
 
   def top_products
-    report_setup("Top Products")    
-
     results = {}
     @orders.each do |order|
       order.line_items.each do |li|
@@ -173,22 +179,18 @@ logger.warn "steph here"
       end
     end
 
-    sort_results = {}
-    results.each do |k, v|
-      sort_results[k] = v[:revenue]
+    @data = Table(%w[name Units Revenue])
+    results.inject({}) { |h, (k, v) | h[k] = v[:revenue]; h }.sort { |a, b| a[1] <=> b [1] }.reverse[0..4].each do |k, v|
+      @data << { "name" => results[k][:name], "Units" => results[k][:units], "Revenue" => results[k][:revenue] } 
     end
-    @data = Table(%w[name units revenue])
-    sort_results.sort { |a, b| a[1] <=> b [1] }.reverse[0..4].each do |k, v|
-      @data << { "name" => results[k][:name], "units" => results[k][:units], "revenue" => results[k][:revenue] } 
-    end
+    @data.replace_column("Revenue") { |r| "$%0.2f" % r.Revenue }
+    @data.rename_column("name", "Product Name")
 
     # format revenue column
     render :template => "admin/reports/base_top_report"
   end
 
   def top_customers
-    report_setup("Top Customers")
-
     results = {}
     @orders.each do |order|
       if order.user
@@ -209,23 +211,18 @@ logger.warn "steph here"
       end
     end
 
-    @data = Table(%w[email units revenue])
-    sort_results = {}
-    results.each do |k, v|
-      sort_results[k] = v[:revenue]
+    @data = Table(%w[email Units Revenue])
+    results.inject({}) { |h, (k, v) | h[k] = v[:revenue]; h }.sort { |a, b| a[1] <=> b [1] }.reverse[0..4].each do |k, v|
+      @data << { "email" => results[k][:email], "Units" => results[k][:units], "Revenue" => results[k][:revenue] } 
     end
-    sort_results.sort { |a, b| a[1] <=> b [1] }.reverse[0..4].each do |k, v|
-      @data << { "email" => results[k][:email], "units" => results[k][:units], "revenue" => results[k][:revenue] } 
-    end
+    @data.replace_column("Revenue") { |r| "$%0.2f" % r.Revenue }
+    @data.rename_column("email", "Customer Email")
 
     # format revenue column
     render :template => "admin/reports/base_top_report"
   end
 
   def geo_revenue
-    report_setup('Units')
-    #get_units(results, @dates, @orders)
-
     results = {
       :state => {},
       :country => {}
@@ -241,7 +238,8 @@ logger.warn "steph here"
         results[:state][order.bill_address.state_id] ||= {
           :name => order.bill_address.state.name,
           :revenue => 0,
-          :units => 0
+          :units => 0,
+          :abbr => order.bill_address.state.abbr
         }
         results[:state][order.bill_address.state_id][:revenue] += rev
         results[:state][order.bill_address.state_id][:units] += units
@@ -257,13 +255,31 @@ logger.warn "steph here"
       end
     end
 
-    @data_states = Table(%w[name units revenue])
-    results[:state].each do |k, v|
-      @data_states << { "name" => v[:name], "units" => v[:units], "revenue" => v[:revenue] } 
+    @data = {}
+    [:state, :country].each do |type|
+      @data[type] = Table(%w[location Units Revenue])
+      results[type].each do |k, v|
+        @data[type] << { "location" => v[:name], "Units" => v[:units], "Revenue" => v[:revenue] } 
+      end
+      @data[type].rename_column("location", type.to_s.capitalize)
+      @data[type].replace_column("Revenue") { |r| "$%0.2f" % r.Revenue }
     end
-    @data_countries = Table(%w[name units revenue])
-    results[:country].each do |k, v|
-      @data_countries << { "name" => v[:name], "units" => v[:units], "revenue" => v[:revenue] } 
+
+
+    @map_data = {}
+    max = results[:state].inject({}) { |h, (k, v)| h[k] = v[:revenue]; h }.values.max
+    min = 0
+    @map_data[:state] = results[:state].inject({}) { |h, (k, v)| h[v[:abbr]] = { :opacity => opacity(v[:revenue], max), :value => v[:revenue] }; h }
+    ["DC", "UT", "LA", "VA", "ND", "WY", "NM", "CT", "WV", "WI", "NC",
+      "NV", "HI", "OK", "FL", "CA", "OR", "KY", "MA", "AK", "WA", "NH",
+      "AR", "PA", "RI", "MD", "OH", "TX", "MS", "CO", "SC", "SD", "IL",
+      "MO", "NE", "DE", "TN", "NJ", "IN", "IA", "GA", "NY", "MI", "AZ",
+      "KS", "ID", "VT", "MT", "MN", "ME", "AL"].each do |abbr|
+      @map_data[:state][abbr] ||= { :opacity => '0', :value => 0 }
     end
+  end
+
+  def opacity(value, max)
+    (value.to_f/(1.5*max)*100).to_i.to_s #.to_s
   end
 end

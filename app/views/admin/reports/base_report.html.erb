@@ -1,5 +1,17 @@
 <h1><%= @report_name %></h1>
 
+Date Range:
+<% if params[:search] -%>
+  <% if params[:search][:created_at_after] != '' && params[:search][:created_at_before] != '' -%>
+    From <%= params[:search][:created_at_after] %> to <%= params[:search][:created_at_before] %>
+  <% elsif params[:search][:created_at_after] != '' -%>
+    After <%= params[:search][:created_at_after] %>
+  <% elsif params[:search][:created_at_before] != '' -%>
+    Before <%= params[:search][:created_at_after] %>
+  <% end -%>
+<% else -%>
+All
+<% end -%><br />
 Total: <%= @value_total%>
 <% if false -%>Download Data: <a href="/downloadable">Downloadable</a><% end -%>
 <table width="100%" cellpadding="0" cellspacing="0" class="show_data">
