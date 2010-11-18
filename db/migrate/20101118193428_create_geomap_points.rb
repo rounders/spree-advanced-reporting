@@ -4,7 +4,7 @@ class CreateGeomapPoints < ActiveRecord::Migration
       t.column :geomap_id, :integer
       t.column :location, :string
       t.column :shape, :string
-      t.column :coordinates, :string
+      t.column :coordinates, :text
     end
     usa_id = Geomap.find_by_permalink('usa').id
     world_id = Geomap.find_by_permalink('world').id
