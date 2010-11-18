@@ -54,6 +54,7 @@ module AdvancedReporting::ReportsController
   end
 
   def report_setup(report_name) 
+	@reports = Admin::ReportsController::AVAILABLE_REPORTS 
     dropdowns
     @dates = get_date_formatting
     @header = 'blah' #@dates ? @dates[:header_display] : '-'
@@ -62,10 +63,7 @@ module AdvancedReporting::ReportsController
 
     @search = Order.searchlogic(params[:search])
     # store id can be an order search param here
-
     @search.checkout_complete = true
-    #set order by to default or form result
-    @search.order ||= "descend_by_created_at"
 
     @orders = @search.find(:all)
 
@@ -83,6 +81,7 @@ module AdvancedReporting::ReportsController
   end
 
   def get_revenue(results, dates, orders)
+logger.warn "steph #{orders.inspect}"
     orders.each do |order|
       date = {}
       [:daily, :weekly, :monthly].each do |type|
@@ -92,14 +91,12 @@ module AdvancedReporting::ReportsController
           :display => type == :weekly ? get_week_display(order.completed_at) : order.completed_at.strftime(dates[type][:date_display])
         }
       end
-      if params[:advanced_reporting] && params[:advanced_reporting][:product] && params[:advanced_reporting][:product] != ''
-        item_rev = order.line_items.select { |li| li.product.id.to_s == params[:advanced_reporting][:product] }.inject(0) { |a, b| a += b.quantity * b.price }
-        [:daily, :weekly, :monthly].each { |type| results[type][date[type]][:value] += item_rev }
-        @value_total += item_rev
-      else 
-        [:daily, :weekly, :monthly].each { |type| results[type][date[type]][:value] += order.item_total }
-        @value_total += order.item_total
+      rev = order.item_total
+      if params[:advanced_reporting] && params[:advanced_reporting][:product_id] && params[:advanced_reporting][:product_id] != ''
+        rev = order.line_items.select { |li| li.product.id.to_s == params[:advanced_reporting][:product_id] }.inject(0) { |a, b| a += b.quantity * b.price }
       end
+      [:daily, :weekly, :monthly].each { |type| results[type][date[type]][:value] += rev }
+      @value_total += rev
     end
 
     [:daily, :weekly, :monthly].each do |type|
@@ -111,6 +108,7 @@ module AdvancedReporting::ReportsController
 
   def revenue
     results = report_setup('Revenue')
+logger.warn "steph here"
     get_revenue(results, @dates, @orders)
 
     # add rendering for different format requests
@@ -137,8 +135,8 @@ module AdvancedReporting::ReportsController
         }
       end
       units = order.line_items.sum(:quantity)
-      if params[:advanced_reporting] && params[:advanced_reporting][:product] && params[:advanced_reporting][:product] != ''
-        units = order.line_items.select { |li| li.product.id.to_s == params[:advanced_reporting][:product] }.inject(0) { |a, b| a += b.quantity }
+      if params[:advanced_reporting] && params[:advanced_reporting][:product_id] && params[:advanced_reporting][:product_id] != ''
+        units = order.line_items.select { |li| li.product.id.to_s == params[:advanced_reporting][:product_id] }.inject(0) { |a, b| a += b.quantity }
       end
       [:daily, :weekly, :monthly].each { |type| results[type][date[type]][:value] += units }
       @value_total += units
@@ -202,9 +200,9 @@ module AdvancedReporting::ReportsController
         # check this
         rev = order.item_total
         units = order.line_items.sum(:quantity)
-        if params[:advanced_reporting] && params[:advanced_reporting][:product] && params[:advanced_reporting][:product] != ''
-          rev = order.line_items.select { |li| li.product.id.to_s == params[:advanced_reporting][:product] }.inject(0) { |a, b| a += b.quantity * b.price }
-          units = order.line_items.select { |li| li.product.id.to_s == params[:advanced_reporting][:product] }.inject(0) { |a, b| a += b.quantity }
+        if params[:advanced_reporting] && params[:advanced_reporting][:product_id] && params[:advanced_reporting][:product_id] != ''
+          rev = order.line_items.select { |li| li.product.id.to_s == params[:advanced_reporting][:product_id] }.inject(0) { |a, b| a += b.quantity * b.price }
+          units = order.line_items.select { |li| li.product.id.to_s == params[:advanced_reporting][:product_id] }.inject(0) { |a, b| a += b.quantity }
         end
         results[order.user.id][:revenue] += rev
         results[order.user.id][:units] += units
@@ -235,9 +233,9 @@ module AdvancedReporting::ReportsController
     @orders.each do |order|
       rev = order.item_total
       units = order.line_items.sum(:quantity)
-      if params[:advanced_reporting] && params[:advanced_reporting][:product] && params[:advanced_reporting][:product] != ''
-        rev = order.line_items.select { |li| li.product.id.to_s == params[:advanced_reporting][:product] }.inject(0) { |a, b| a += b.quantity * b.price }
-        units = order.line_items.select { |li| li.product.id.to_s == params[:advanced_reporting][:product] }.inject(0) { |a, b| a += b.quantity }
+      if params[:advanced_reporting] && params[:advanced_reporting][:product_id] && params[:advanced_reporting][:product_id] != ''
+        rev = order.line_items.select { |li| li.product.id.to_s == params[:advanced_reporting][:product_id] }.inject(0) { |a, b| a += b.quantity * b.price }
+        units = order.line_items.select { |li| li.product.id.to_s == params[:advanced_reporting][:product_id] }.inject(0) { |a, b| a += b.quantity }
       end
       if order.bill_address.state
         results[:state][order.bill_address.state_id] ||= {

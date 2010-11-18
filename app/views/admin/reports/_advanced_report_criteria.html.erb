@@ -13,15 +13,32 @@
     </div>
 
     <% if @stores -%>
-    Stores: dropdown for stores
+    Stores:<br /><%= collection_select(:search, :store_id, @stores, :id, :name, { :include_blank => 'All' } ) %><br />
     <% end -%>
 
     <% if params[:action] != 'top_products' %>
-    Products: <%= collection_select(:advanced_reporting, :product, @products, :id, :name, { :include_blank => 'All' } ) %> 
+    Products:<br /><%= collection_select(:advanced_reporting, :product_id, @products, :id, :name, { :include_blank => 'All' } ) %><br />
     <% end -%>
 
-    <p><%= button t("search") %></p>
+    <p><%= button t("submit") %></p>
 <% end %>
+
+<table>
+  <thead>
+    <tr>
+      <th><%= t("name") %></th>
+      <th><%= t("description") %></th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @reports.each do |key, value| %>
+    <tr>
+      <td><%= link_to t(value[:name].downcase.gsub(" ","_")), send("#{key}_admin_reports_url".to_sym) %></td>
+      <td><%= t(value[:description].downcase.gsub(" ","_")) %></td>
+    </tr>
+    <% end %>
+  </tbody>
+</table>
 
 <% content_for :head do -%>
 <%= javascript_include_tag 'jquery.tablesorter.min.js', 'advanced_reporting.js' %>
