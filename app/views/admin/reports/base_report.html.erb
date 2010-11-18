@@ -3,11 +3,13 @@
 Date Range:
 <% if params[:search] -%>
   <% if params[:search][:created_at_after] != '' && params[:search][:created_at_before] != '' -%>
-    From <%= params[:search][:created_at_after] %> to <%= params[:search][:created_at_before] %>
+  From <%= params[:search][:created_at_after] %> to <%= params[:search][:created_at_before] %>
   <% elsif params[:search][:created_at_after] != '' -%>
-    After <%= params[:search][:created_at_after] %>
+  After <%= params[:search][:created_at_after] %>
   <% elsif params[:search][:created_at_before] != '' -%>
-    Before <%= params[:search][:created_at_after] %>
+  Before <%= params[:search][:created_at_after] %>
+  <% else -%>
+  All
   <% end -%>
 <% else -%>
 All
