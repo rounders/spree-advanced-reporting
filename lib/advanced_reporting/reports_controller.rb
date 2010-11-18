@@ -266,7 +266,8 @@ module AdvancedReporting::ReportsController
         results[:country][order.bill_address.country_id] ||= {
           :name => order.bill_address.country.name,
           :revenue => 0,
-          :units => 0
+          :units => 0,
+          :iso => order.bill_address.country.iso
         }
         results[:country][order.bill_address.country_id][:revenue] += rev
         results[:country][order.bill_address.country_id][:units] += units
@@ -284,18 +285,17 @@ module AdvancedReporting::ReportsController
       @data[type].replace_column("Revenue") { |r| "$%0.2f" % r.Revenue }
     end
 
-    @map_data = { :state => {} }
-    max = results[:state].inject({}) { |h, (k, v)| h[k] = v[:revenue]; h }.values.max
-    if max > 0
-      @map_data[:state] = results[:state].inject({}) { |h, (k, v)| h[v[:abbr]] = { :opacity => opacity(v[:revenue], max), :value => v[:revenue] }; h }
+    @map_data = {}
+    max = {}
+    [:state, :country].each do |type|
+      max[type] = results[type].inject({}) { |h, (k, v)| h[k] = v[:revenue]; h }.values.max
+      if max[type] > 0
+        key = type == :state ? :abbr : :iso
+        @map_data[type] = results[type].inject({}) { |h, (k, v)| h[v[key]] = { :opacity => opacity(v[:revenue], max[type]), :value => v[:revenue] }; h }
+      end
     end
-    ["DC", "UT", "LA", "VA", "ND", "WY", "NM", "CT", "WV", "WI", "NC",
-      "NV", "HI", "OK", "FL", "CA", "OR", "KY", "MA", "AK", "WA", "NH",
-      "AR", "PA", "RI", "MD", "OH", "TX", "MS", "CO", "SC", "SD", "IL",
-      "MO", "NE", "DE", "TN", "NJ", "IN", "IA", "GA", "NY", "MI", "AZ",
-      "KS", "ID", "VT", "MT", "MN", "ME", "AL"].each do |abbr|
-      @map_data[:state][abbr] ||= { :opacity => '0', :value => 0 }
-    end
+
+    @geomaps = { :state => Geomap.find_by_permalink('usa'), :country => Geomap.find_by_permalink('world') }
   end
 
   def opacity(value, max)
