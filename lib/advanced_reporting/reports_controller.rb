@@ -34,6 +34,11 @@ module AdvancedReporting::ReportsController
     d -= 1 while Date::DAYNAMES[d.wday] != 'Sunday'
     "#{d.strftime("%m-%d-%Y")} - #{(d+6).strftime("%m-%d-%Y")}"
   end
+  def get_prior_sunday(time)
+    d = Date.parse(time.strftime("%F"))
+    d -= 1 while Date::DAYNAMES[d.wday] != 'Sunday'
+    d.to_time.to_i
+  end
 
   def basic_report_setup
     @reports = ADVANCED_REPORTS
@@ -67,17 +72,19 @@ module AdvancedReporting::ReportsController
   end
 
   def report_increment_setup
-    @data = {
-      :daily => Table(%w[key display value]),
-      :weekly => Table(%w[key display value]),
-      :monthly => Table(%w[key display value]),
-    } 
+    @flot_data = {}
+    @data = {}
+    [:daily, :weekly, :monthly].each do |type|
+      @data[type] = Table(%w[key display value])
+      @flot_data[type] = Table(%w[timestamp value])
+    end
 
     @dates = {
       :daily => {
         :date_hash => "%F",
         :date_display => "%m-%d-%Y",
-        :header_display => 'Day'
+        :header_display => 'Day',
+        :timestamp => "%Y-%m-%d"
       },
       :weekly => {
         :date_hash => "%U",
@@ -87,7 +94,8 @@ module AdvancedReporting::ReportsController
       :monthly => {
         :date_hash => "%Y-%m",
         :date_display => "%B %Y",
-        :header_display => 'Month'
+        :header_display => 'Month',
+        :timestamp => "%Y-%m-01"
       }
     }
 
@@ -105,7 +113,9 @@ module AdvancedReporting::ReportsController
         date[type] = order.completed_at.strftime(dates[type][:date_hash])
         results[type][date[type]] ||= {
           :value => 0, 
-          :display => type == :weekly ? get_week_display(order.completed_at) : order.completed_at.strftime(dates[type][:date_display])
+          :display => type == :weekly ? get_week_display(order.completed_at) : order.completed_at.strftime(dates[type][:date_display]),
+          :timestamp => type == :weekly ? get_prior_sunday(order.completed_at).to_i :
+             Time.parse(order.completed_at.strftime(dates[type][:timestamp])).to_i
         }
       end
       rev = order.item_total
@@ -119,6 +129,7 @@ module AdvancedReporting::ReportsController
     [:daily, :weekly, :monthly].each do |type|
       results[type].each do |k,v|
         @data[type] << { "key" => k, "display" => v[:display], "value" => v[:value] } 
+        @flot_data[type] << { "timestamp" => v[:timestamp], "value" => v[:value] }
       end
       @data[type].sort_rows_by!(["key"])
       @data[type].remove_column("key")
@@ -153,7 +164,9 @@ module AdvancedReporting::ReportsController
         date[type] = order.completed_at.strftime(dates[type][:date_hash])
         results[type][date[type]] ||= {
           :value => 0, 
-          :display => type == :weekly ? get_week_display(order.completed_at) : order.completed_at.strftime(dates[type][:date_display])
+          :display => type == :weekly ? get_week_display(order.completed_at) : order.completed_at.strftime(dates[type][:date_display]),
+          :timestamp => type == :weekly ? get_prior_sunday(order.completed_at).to_i :
+             Time.parse(order.completed_at.strftime(dates[type][:timestamp])).to_i
         }
       end
       units = order.line_items.sum(:quantity)
@@ -167,6 +180,7 @@ module AdvancedReporting::ReportsController
     [:daily, :weekly, :monthly].each do |type|
       results[type].each do |k,v|
         @data[type] << { "key" => k, "display" => v[:display], "value" => v[:value] } 
+        @flot_data[type] << { "timestamp" => v[:timestamp], "value" => v[:value] }
       end
       @data[type].sort_rows_by!(["key"])
       @data[type].remove_column("key")
@@ -266,7 +280,8 @@ module AdvancedReporting::ReportsController
         results[:country][order.bill_address.country_id] ||= {
           :name => order.bill_address.country.name,
           :revenue => 0,
-          :units => 0
+          :units => 0,
+          :iso => order.bill_address.country.iso
         }
         results[:country][order.bill_address.country_id][:revenue] += rev
         results[:country][order.bill_address.country_id][:units] += units
@@ -284,18 +299,17 @@ module AdvancedReporting::ReportsController
       @data[type].replace_column("Revenue") { |r| "$%0.2f" % r.Revenue }
     end
 
-    @map_data = { :state => {} }
-    max = results[:state].inject({}) { |h, (k, v)| h[k] = v[:revenue]; h }.values.max
-    if max > 0
-      @map_data[:state] = results[:state].inject({}) { |h, (k, v)| h[v[:abbr]] = { :opacity => opacity(v[:revenue], max), :value => v[:revenue] }; h }
+    @map_data = {}
+    max = {}
+    [:state, :country].each do |type|
+      max[type] = results[type].inject({}) { |h, (k, v)| h[k] = v[:revenue]; h }.values.max
+      if max[type] > 0
+        key = type == :state ? :abbr : :iso
+        @map_data[type] = results[type].inject({}) { |h, (k, v)| h[v[key]] = { :opacity => opacity(v[:revenue], max[type]), :value => v[:revenue] }; h }
+      end
     end
-    ["DC", "UT", "LA", "VA", "ND", "WY", "NM", "CT", "WV", "WI", "NC",
-      "NV", "HI", "OK", "FL", "CA", "OR", "KY", "MA", "AK", "WA", "NH",
-      "AR", "PA", "RI", "MD", "OH", "TX", "MS", "CO", "SC", "SD", "IL",
-      "MO", "NE", "DE", "TN", "NJ", "IN", "IA", "GA", "NY", "MI", "AZ",
-      "KS", "ID", "VT", "MT", "MN", "ME", "AL"].each do |abbr|
-      @map_data[:state][abbr] ||= { :opacity => '0', :value => 0 }
-    end
+
+    @geomaps = { :state => Geomap.find_by_permalink('usa'), :country => Geomap.find_by_permalink('world') }
   end
 
   def opacity(value, max)

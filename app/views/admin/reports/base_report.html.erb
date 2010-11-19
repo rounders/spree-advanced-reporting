@@ -14,9 +14,22 @@ Total: <%= @value_total%>
 <% [:daily, :weekly, :monthly].each do |type| -%>
 <div id="<%= type.to_s %>_data" <%= 'style="display:none;"' if type.to_s != 'daily' %> class="advanced_reporting_data">
 <%= @data[type].to_html %>
+
+<div id="flotter_<%= type.to_s %>" style="width: 800px; height: 300px; position: relative;"><canvas height="300" width="800"></canvas><canvas style="position: absolute; left: 0px; top: 0px;" height="300" width="800"></canvas></div>
+
 </div>
 <% end -%>
 
 <% content_for :sidebar do %>
   <%= render :partial => 'admin/reports/advanced_report_criteria', :locals => {} %>
 <% end %>
+
+<% content_for :head do -%>
+<script type="text/javascript">
+var flot_data = {
+	'daily' : <%= @flot_data[:daily].to_flot %>,
+	'weekly' : <%= @flot_data[:weekly].to_flot %>,
+	'monthly' : <%= @flot_data[:monthly].to_flot %>
+};
+</script>
+<% end -%>
