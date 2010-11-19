@@ -14,6 +14,9 @@ class AdvancedReportingExtension < Spree::Extension
   def activate
     Admin::ReportsController.send(:include, AdvancedReporting::ReportsController)
 
+    # TODO: Figure out a better place for this?
+    Ruport::Controller::Table.formats.merge({ :flot => MyFlotFormatter })
+
     Ruport::Formatter::HTML.class_eval do
       # Renders individual rows for the table.
       def build_row(data = self.data)

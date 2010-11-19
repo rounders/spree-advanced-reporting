@@ -34,6 +34,11 @@ module AdvancedReporting::ReportsController
     d -= 1 while Date::DAYNAMES[d.wday] != 'Sunday'
     "#{d.strftime("%m-%d-%Y")} - #{(d+6).strftime("%m-%d-%Y")}"
   end
+  def get_prior_sunday(time)
+    d = Date.parse(time.strftime("%F"))
+    d -= 1 while Date::DAYNAMES[d.wday] != 'Sunday'
+    d.to_time.to_i
+  end
 
   def basic_report_setup
     @reports = ADVANCED_REPORTS
@@ -67,17 +72,19 @@ module AdvancedReporting::ReportsController
   end
 
   def report_increment_setup
-    @data = {
-      :daily => Table(%w[key display value]),
-      :weekly => Table(%w[key display value]),
-      :monthly => Table(%w[key display value]),
-    } 
+    @flot_data = {}
+    @data = {}
+    [:daily, :weekly, :monthly].each do |type|
+      @data[type] = Table(%w[key display value])
+      @flot_data[type] = Table(%w[timestamp value])
+    end
 
     @dates = {
       :daily => {
         :date_hash => "%F",
         :date_display => "%m-%d-%Y",
-        :header_display => 'Day'
+        :header_display => 'Day',
+        :timestamp => "%Y-%m-%d"
       },
       :weekly => {
         :date_hash => "%U",
@@ -87,7 +94,8 @@ module AdvancedReporting::ReportsController
       :monthly => {
         :date_hash => "%Y-%m",
         :date_display => "%B %Y",
-        :header_display => 'Month'
+        :header_display => 'Month',
+        :timestamp => "%Y-%m-01"
       }
     }
 
@@ -105,7 +113,9 @@ module AdvancedReporting::ReportsController
         date[type] = order.completed_at.strftime(dates[type][:date_hash])
         results[type][date[type]] ||= {
           :value => 0, 
-          :display => type == :weekly ? get_week_display(order.completed_at) : order.completed_at.strftime(dates[type][:date_display])
+          :display => type == :weekly ? get_week_display(order.completed_at) : order.completed_at.strftime(dates[type][:date_display]),
+          :timestamp => type == :weekly ? get_prior_sunday(order.completed_at).to_i :
+             Time.parse(order.completed_at.strftime(dates[type][:timestamp])).to_i
         }
       end
       rev = order.item_total
@@ -119,6 +129,7 @@ module AdvancedReporting::ReportsController
     [:daily, :weekly, :monthly].each do |type|
       results[type].each do |k,v|
         @data[type] << { "key" => k, "display" => v[:display], "value" => v[:value] } 
+        @flot_data[type] << { "timestamp" => v[:timestamp], "value" => v[:value] }
       end
       @data[type].sort_rows_by!(["key"])
       @data[type].remove_column("key")
@@ -153,7 +164,9 @@ module AdvancedReporting::ReportsController
         date[type] = order.completed_at.strftime(dates[type][:date_hash])
         results[type][date[type]] ||= {
           :value => 0, 
-          :display => type == :weekly ? get_week_display(order.completed_at) : order.completed_at.strftime(dates[type][:date_display])
+          :display => type == :weekly ? get_week_display(order.completed_at) : order.completed_at.strftime(dates[type][:date_display]),
+          :timestamp => type == :weekly ? get_prior_sunday(order.completed_at).to_i :
+             Time.parse(order.completed_at.strftime(dates[type][:timestamp])).to_i
         }
       end
       units = order.line_items.sum(:quantity)
@@ -167,6 +180,7 @@ module AdvancedReporting::ReportsController
     [:daily, :weekly, :monthly].each do |type|
       results[type].each do |k,v|
         @data[type] << { "key" => k, "display" => v[:display], "value" => v[:value] } 
+        @flot_data[type] << { "timestamp" => v[:timestamp], "value" => v[:value] }
       end
       @data[type].sort_rows_by!(["key"])
       @data[type].remove_column("key")
